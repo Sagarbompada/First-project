@@ -1,53 +1,46 @@
 pipeline {
     agent any
+
     stages {
+
         stage('Checkout Code') {
             steps {
                 checkout scm
             }
         }
-        stage('Install Dependencies') {
-                steps {
-                    sh '''
-                      python3 -m venv venv
-                      . venv/bin/activate
-                      pip install flask pytest pipreqs --break-system-packages
-                      pipreqs . --force
-                      pip install -r requirements.txt --break-system-packages --ignore-installed
-                    '''
-                }
-            }
-        stage('Run Unit Test') {
-            steps {
-                 sh '''
-                  . venv/bin/activate
-                  sed -i 's/== b"OK"/== b"Healthy"/g' test.py
-                  python3 test.py
-                '''
-            }
-        }
-        stage('Deploy') {
+
+        stage('Setup Virtual Environment & Install Deps') {
             steps {
                 sh '''
-                  . venv/bin/activate
-                  pkill -f "python3 app.py" || true
-                  nohup python3 app.py > app.log 2>&1 &
-                  sleep 2
-                  echo "App started successfully"
+                  python3 -m venv venv
+                  ./venv/bin/python -m pip install --upgrade pip
+                  ./venv/bin/python -m pip install -r requirements.txt
                 '''
             }
         }
-    }
-    post {
-        always {
-            echo "Pipeline finished"
+
+        stage('Run Health Test') {
+            steps {
+                sh '''
+                  ./venv/bin/python - <<EOF
+from app import app
+client = app.test_client()
+response = client.get("/health")
+assert response.data == b"Healthy"
+print("Health endpoint test passed")
+EOF
+                '''
+            }
         }
+
+    }
+
+    post {
         success {
-            echo "CI Pipeline completed successfully! App is running."
+            echo "CI Pipeline completed successfully!"
         }
         failure {
-            sh 'rm -rf venv'
-            echo "CI Pipeline failed! Check logs."
+            echo "CI Pipeline failed!"
         }
     }
 }
