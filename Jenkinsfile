@@ -7,15 +7,16 @@ pipeline {
             }
         }
         stage('Install Dependencies') {
-            steps {
-                sh '''
-                  python3 -m venv venv
-                  . venv/bin/activate
-                  pip install -r requirements.txt --break-system-packages --ignore-installed
-                  pip install pytest --break-system-packages
-                '''
+                steps {
+                    sh '''
+                      python3 -m venv venv
+                      . venv/bin/activate
+                      pip install flask pytest pipreqs --break-system-packages
+                      pipreqs . --force
+                      pip install -r requirements.txt --break-system-packages --ignore-installed
+                    '''
+                }
             }
-        }
         stage('Run Unit Test') {
             steps {
                 sh '''
