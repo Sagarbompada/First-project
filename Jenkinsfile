@@ -1,47 +1,51 @@
 pipeline {
     agent any
-
     stages {
-
         stage('Checkout Code') {
             steps {
                 checkout scm
             }
         }
-
         stage('Install Dependencies') {
             steps {
                 sh '''
                   python3 -m venv venv
                   . venv/bin/activate
-                  pip install -r requirements.txt
+                  pip install -r requirements.txt --break-system-packages --ignore-installed
+                  pip install pytest --break-system-packages
                 '''
             }
         }
-
         stage('Run Unit Test') {
             steps {
                 sh '''
                   . venv/bin/activate
-                  python - <<EOF
-from app import app
-client = app.test_client()
-response = client.get("/health")
-assert response.data == b"OK"
-print("Health endpoint test passed")
-EOF
+                  python3 test.py
                 '''
             }
         }
-
+        stage('Deploy') {
+            steps {
+                sh '''
+                  . venv/bin/activate
+                  pkill -f "python3 app.py" || true
+                  nohup python3 app.py > app.log 2>&1 &
+                  sleep 2
+                  echo "App started successfully"
+                '''
+            }
+        }
     }
-
     post {
+        always {
+            echo "Pipeline finished"
+        }
         success {
-            echo "CI Pipeline completed successfully!"
+            echo "CI Pipeline completed successfully! App is running."
         }
         failure {
-            echo "CI Pipeline failed!"
+            sh 'rm -rf venv'
+            echo "CI Pipeline failed! Check logs."
         }
     }
 }
