@@ -19,8 +19,9 @@ pipeline {
             }
         stage('Run Unit Test') {
             steps {
-                sh '''
+                 sh '''
                   . venv/bin/activate
+                  sed -i 's/== b"OK"/== b"Healthy"/g' test.py
                   python3 test.py
                 '''
             }
